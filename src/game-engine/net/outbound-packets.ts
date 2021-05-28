@@ -9,11 +9,10 @@ import { WorldItem } from '@engine/world/items/world-item';
 import { ByteBuffer } from '@runejs/core/buffer';
 import { Npc } from '@engine/world/actor/npc/npc';
 import { stringToLong } from '@engine/util/strings';
-import { LandscapeObject } from '@runejs/filestore';
+import { LandscapeObject, ObjectConfig } from '@runejs/filestore';
 import { xteaRegions } from '@engine/config';
 import { world } from '@engine/game-server';
 import { ConstructedChunk, ConstructedRegion } from '@engine/world/map/region';
-
 
 
 /**
@@ -51,11 +50,47 @@ export class OutboundPackets {
         this.queue(packet);
     }
 
+    public sendShakeScreen(verticleAmount: number, verticleSpeed: number, horizontalAmount: number, horizontalSpeed: number): void {
+        const packet = new Packet(255);
+
+        packet.put(verticleAmount)
+        packet.put(verticleSpeed)
+        packet.put(horizontalAmount)
+        packet.put(horizontalSpeed)
+
+        this.queue(packet);
+    }
+
     public updateSocialSettings(): void {
         const packet = new Packet(196);
         packet.put(this.player.settings.publicChatMode || 0);
         packet.put(this.player.settings.privateChatMode || 0);
         packet.put(this.player.settings.tradeMode || 0);
+        this.queue(packet);
+    }
+
+    public setMinimapState(minimapState: 0 | 1 | 2): void { // 0 normal, 1 cant click on map, 2 black
+        const packet = new Packet(235);
+        packet.put(minimapState);
+        this.queue(packet);
+    }
+
+    public sendProjectile(position: Position, offsetX: number, offsetY: number, id: number, startHeight: number, endHeight: number, speed: number, lockon: number, delay: number) {
+        this.updateReferencePosition(position);
+
+        const packet = new Packet(1);
+
+        packet.put(0);
+        packet.put(offsetY, 'byte');
+        packet.put(offsetX, 'byte');
+        packet.put(lockon, 'SHORT', 'BIG_ENDIAN');
+        packet.put(id, 'SHORT', 'BIG_ENDIAN');
+        packet.put(startHeight);
+        packet.put(endHeight);
+        packet.put(delay, 'SHORT', 'BIG_ENDIAN');
+        packet.put(speed, 'SHORT', 'BIG_ENDIAN');
+        packet.put(16);
+        packet.put(64);
         this.queue(packet);
     }
 
@@ -202,6 +237,36 @@ export class OutboundPackets {
         this.queue(packet);
     }
 
+    public sendObjectAnim(locationObject: LandscapeObject, position: Position, offset: number = 0, animId: number): void {
+        this.updateReferencePosition(position);
+
+        const packet = new Packet(49);
+        packet.put(offset);
+        packet.put((locationObject.type << 2) + (locationObject.orientation & 3));
+        packet.put(animId, 'SHORT', 'LE');
+
+        this.queue(packet);
+    }
+
+    //Honestly no idea what this use for and how it works. Super buggy i guess
+    public sendObjectTransformation(position: Position, player: number, locationObject: LandscapeObject, sizeX:number, sizeY:number, duration:number, delay:number, unknown:number, unknown2:number): void {
+        this.updateReferencePosition(position);
+
+        const packet = new Packet(229);
+        packet.put(unknown2);
+        packet.put(player, 'SHORT', 'BE');
+        packet.put(sizeX);
+        packet.put(sizeY);
+        packet.put((locationObject.type << 2) + (locationObject.orientation & 3));
+        packet.put(0);
+        packet.put(delay, 'SHORT', 'BE');
+        packet.put(unknown);
+        packet.put(locationObject.objectId, 'SHORT', 'LE');
+        packet.put(duration, 'SHORT', 'LE');
+        this.queue(packet);
+    }
+
+
     public updateReferencePosition(position: Position): void {
         const offsetX = position.x - (this.player.lastMapRegionUpdatePosition.chunkX * 8);
         const offsetY = position.y - (this.player.lastMapRegionUpdatePosition.chunkY * 8);
@@ -219,6 +284,14 @@ export class OutboundPackets {
     public showChatboxWidget(widgetId: number): void {
         const packet = new Packet(208);
         packet.put(widgetId, 'SHORT');
+
+        this.queue(packet);
+    }
+
+    // Send interface with chatbox integrated: report interface. No clue for the name xD
+    public sendReportButton(widgetId: number): void {
+        const packet = new Packet(130);
+        packet.put(widgetId, 'SHORT', 'LE');
 
         this.queue(packet);
     }
@@ -246,10 +319,30 @@ export class OutboundPackets {
         this.queue(packet);
     }
 
+    public playWidgetRotation(widgetId: number, childId: number, x: number, y: number): void {
+        const packet = new Packet(117);
+        packet.put(x, 'SHORT', 'BE');
+        packet.put(y, 'SHORT', 'LE');
+        packet.put(widgetId << 16 | childId, 'INT', 'LE');
+
+        this.queue(packet);
+    }
+
     public showScreenAndTabWidgets(widgetId: number, tabWidgetId: number): void {
         const packet = new Packet(84);
         packet.put(tabWidgetId, 'SHORT');
         packet.put(widgetId, 'SHORT', 'LITTLE_ENDIAN');
+        this.queue(packet);
+    }
+
+    public sendStillGraphic(graphicId: number, position: Position, delay: number, offset: number = 0): void {
+        this.updateReferencePosition(position);
+
+        const packet = new Packet(202);
+        packet.put(offset)
+        packet.put(graphicId, 'SHORT', 'BE');
+        packet.put(position.level);
+        packet.put(delay,'SHORT', 'BE')
         this.queue(packet);
     }
 
