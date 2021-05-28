@@ -61,6 +61,14 @@ export class OutboundPackets {
         this.queue(packet);
     }
 
+    public setWalkingQueues(update: boolean, x:number, y:number): void {
+        const packet = new Packet(129);
+        packet.put(update ? 1 : 0);
+        packet.put(y);
+        packet.put(x);
+        this.queue(packet);
+    }
+
     public updateSocialSettings(): void {
         const packet = new Packet(196);
         packet.put(this.player.settings.publicChatMode || 0);
@@ -291,6 +299,14 @@ export class OutboundPackets {
     public sendReportButton(widgetId: number): void {
         const packet = new Packet(130);
         packet.put(widgetId, 'SHORT', 'LE');
+
+        this.queue(packet);
+    }
+    
+    public ShowMultiCombatIcon(status: 0 | 1): void {
+        const packet = new Packet(48);
+
+        packet.put(status);
 
         this.queue(packet);
     }
